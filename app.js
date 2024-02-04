@@ -9,10 +9,12 @@ app.get('/api/generate', async (req, res) => {
   let response;
 
   try {
-    response = await generate(req.query.prompt);
+    const prompt = req.query.prompt;
+    const history = req.query.history;
+    response = await generate(prompt, history);
   } catch (error) {
-    console.error('Error generating image:', error);
-    res.status(500).send('Error generating image');
+    console.error('Error generating:', error);
+    res.status(500).send('Error generating');
     return;
   }
 
@@ -40,24 +42,41 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
-async function generate(prompt) {
+async function generate(prompt, history) {
   const accessToken = await getAccessToken();
   if (accessToken) {
     const url = `https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat/completions_pro?access_token=${accessToken}`;
-    const data = {
-      messages: [
-        {
+
+    // Prepare messages
+    let messages = [];
+    if (history) {
+      const histories = JSON.parse(history);
+      histories.map((h) => {
+        messages.push({
           role: 'user',
-          content: prompt
-        }
-      ]
-    };
+          content: h.input
+        });
+        messages.push({
+          role: 'assistant',
+          content: h.output
+        });
+      });
+    }
+    messages.push({
+      role: 'user',
+      content: prompt
+    });
+
+    // Make the request
     const headers = {
         'Content-Type': 'application/json'
     };
-
     try {
-      const response = await axios.post(url, data, { headers });
+      console.log("Input:");
+      console.log(JSON.stringify(messages));
+      const response = await axios.post(url, { messages }, { headers });
+
+      console.log("Output:");
       console.log(response.data);
       return response.data;
     } catch (error) {
