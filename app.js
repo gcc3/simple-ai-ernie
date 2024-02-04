@@ -9,9 +9,10 @@ app.get('/api/generate', async (req, res) => {
   let response;
 
   try {
-    const prompt = req.query.prompt;
-    const history = req.query.history;
-    response = await generate(prompt, history);
+    const prompt = decodeURIComponent(req.query.prompt);
+    const history = decodeURIComponent(req.query.history);
+
+    response = await generate(prompt, JSON.parse(history));
   } catch (error) {
     console.error('Error generating:', error);
     res.status(500).send('Error generating');
@@ -50,8 +51,7 @@ async function generate(prompt, history) {
     // Prepare messages
     let messages = [];
     if (history) {
-      const histories = JSON.parse(history);
-      histories.map((h) => {
+      for (const h of history) {
         messages.push({
           role: 'user',
           content: h.input
@@ -60,7 +60,7 @@ async function generate(prompt, history) {
           role: 'assistant',
           content: h.output
         });
-      });
+      }
     }
     messages.push({
       role: 'user',
