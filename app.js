@@ -9,10 +9,11 @@ app.get('/api/generate', async (req, res) => {
   let response;
 
   try {
-    const prompt = decodeURIComponent(req.query.prompt);
-    const history = decodeURIComponent(req.query.history);
+    const input = decodeURIComponent(req.query.input);
+    const histories = decodeURIComponent(req.query.histories);
+    const files = decodeURIComponent(req.query.files);
 
-    response = await generate(prompt, JSON.parse(history));
+    response = await generate(input, JSON.parse(histories), JSON.parse(files));
   } catch (error) {
     console.error('Error generating:', error);
     res.status(500).send('Error generating');
@@ -43,15 +44,25 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
-async function generate(prompt, history) {
+async function generate(input, histories, files) {
   const accessToken = await getAccessToken();
   if (accessToken) {
     const url = `https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat/completions_pro?access_token=${accessToken}`;
 
-    // Prepare messages
+    // Files
+    if (files) {
+      for (const f of files) {
+        messages.push({
+          role: 'user',
+          content: f.text
+        });
+      }
+    }
+
+    // Histories
     let messages = [];
-    if (history) {
-      for (const h of history) {
+    if (histories) {
+      for (const h of histories) {
         messages.push({
           role: 'user',
           content: h.input
@@ -62,9 +73,11 @@ async function generate(prompt, history) {
         });
       }
     }
+
+    // User
     messages.push({
       role: 'user',
-      content: prompt
+      content: input
     });
 
     // Make the request
