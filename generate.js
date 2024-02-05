@@ -5,6 +5,12 @@ import axios from 'axios';
 config();
 const app = express();
 
+const PORT = process.env.PORT || 3000;
+
+app.get('/', (req, res) => {
+  res.send(process.env.NODE)
+});
+
 app.get('/api/generate', async (req, res) => {
   let response;
 
@@ -35,21 +41,12 @@ app.get('/api/generate', async (req, res) => {
   });
 });
 
-app.get('/', (req, res) => {
-  res.send(process.env.NODE)
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
-
 async function generate(input, histories, files) {
   const accessToken = await getAccessToken();
   if (accessToken) {
     const url = `https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat/completions_pro?access_token=${accessToken}`;
 
-    // Files
+    // File messages
     if (files) {
       for (const f of files) {
         messages.push({
@@ -59,7 +56,7 @@ async function generate(input, histories, files) {
       }
     }
 
-    // Histories
+    // Histories messages
     let messages = [];
     if (histories) {
       for (const h of histories) {
@@ -74,7 +71,7 @@ async function generate(input, histories, files) {
       }
     }
 
-    // User
+    // User message
     messages.push({
       role: 'user',
       content: input
@@ -85,12 +82,10 @@ async function generate(input, histories, files) {
         'Content-Type': 'application/json'
     };
     try {
-      console.log("Input:");
-      console.log(JSON.stringify(messages));
+      console.log("Input:\n" + JSON.stringify(messages));
       const response = await axios.post(url, { messages }, { headers });
 
-      console.log("Output:");
-      console.log(response.data);
+      console.log("Output:\n" + response.data);
       return response.data;
     } catch (error) {
       console.error('Error making the request:', error);
@@ -114,3 +109,7 @@ async function getAccessToken() {
     return null;
   }
 }
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
