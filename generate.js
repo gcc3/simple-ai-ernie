@@ -12,32 +12,23 @@ app.get('/', (req, res) => {
 });
 
 app.get('/api/generate', async (req, res) => {
-  let response;
+  let result;
 
   try {
     const input = decodeURIComponent(req.query.input);
-    const histories = decodeURIComponent(req.query.histories);
-    const files = decodeURIComponent(req.query.files);
+    const histories = JSON.parse(decodeURIComponent(req.query.histories));
+    const files = JSON.parse(decodeURIComponent(req.query.files));
 
-    response = await generate(input, JSON.parse(histories), JSON.parse(files));
+    result = await generate(input, histories, files);
   } catch (error) {
     console.error('Error generating:', error);
     res.status(500).send('Error generating');
     return;
   }
 
-  if (response.status === 'failed') {
-    res.status(500).send({
-      success: false,
-      error: response.error,
-    });
-    return;
-  }
-
-  const text = response.result;
   res.send({
     success: true,
-    result: text
+    result: result
   });
 });
 
@@ -46,35 +37,37 @@ async function generate(input, histories, files) {
   if (accessToken) {
     const url = `https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat/completions_pro?access_token=${accessToken}`;
 
-    // File messages
+    let messages = [];
+
+    // File content
+    let fileContent = "";
     if (files) {
       for (const f of files) {
-        messages.push({
-          role: 'user',
-          content: f.text
-        });
+        fileContent += "File url: " + f.file + "\n" + "File content: " + f.text + "\n\n";
       }
     }
 
     // Histories messages
-    let messages = [];
     if (histories) {
       for (const h of histories) {
-        messages.push({
-          role: 'user',
-          content: h.input
-        });
-        messages.push({
-          role: 'assistant',
-          content: h.output
-        });
+        if (h.input && h.output) {
+          messages.push({
+            role: 'user',
+            content: h.input
+          });
+          messages.push({
+            role: 'assistant',
+            content: h.output
+          });
+        }
       }
     }
 
-    // User message
+    // User message and file content
     messages.push({
       role: 'user',
-      content: input
+      content: input + "\n\n"
+             + fileContent
     });
 
     // Make the request
@@ -85,8 +78,8 @@ async function generate(input, histories, files) {
       console.log("Input:\n" + JSON.stringify(messages));
       const response = await axios.post(url, { messages }, { headers });
 
-      console.log("Output:\n" + response.data);
-      return response.data;
+      console.log("Output:\n" + JSON.stringify(response.data));
+      return response.data.result;
     } catch (error) {
       console.error('Error making the request:', error);
     }
